@@ -2,9 +2,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
-from datetime import datetime
+import joblib
 import os
+import math # Tambahan untuk ngecek NaN dan Infinity
+from datetime import datetime
 
 app = FastAPI()
 
@@ -12,62 +13,107 @@ class DateRange(BaseModel):
     start_date: str
     end_date: str
 
+# ==============================================================
+# FUNGSI KEAMANAN JSON (MENCEGAH CRASH)
+# ==============================================================
+def safe_float(value):
+    """Mengubah nilai apapun menjadi float yang sah atau None (null JSON)"""
+    if pd.isna(value) or value is None:
+        return None
+    try:
+        f_val = float(value)
+        if math.isnan(f_val) or math.isinf(f_val):
+            return None
+        return round(f_val, 2)
+    except:
+        return None
+
 @app.post("/predict")
 def predict_stock(date_range: DateRange):
     try:
-        # 1. Pastikan nama file benar-benar sesuai dengan yang ada di foldermu
         file_name = 'BBCAJK_5y_1d.csv'
         
         if not os.path.exists(file_name):
-            raise Exception(f"File {file_name} tidak ditemukan di folder ml-backend.")
+            raise Exception(f"File dataset {file_name} tidak ditemukan.")
 
-        # 2. Load Data
         df = pd.read_csv(file_name)
-        
-        # 3. Preprocessing (Bersihkan data kosong)
-        df['Date'] = pd.to_datetime(df['Date'])
+        df['Date'] = pd.to_datetime(df['Date'], utc=True).dt.tz_localize(None).dt.normalize()
         df = df.dropna(subset=['Date', 'Close']) 
 
-        df['Date_Ordinal'] = df['Date'].map(datetime.toordinal)
-        X = df[['Date_Ordinal']]
-        y = df['Close']
-
-        # 4. Train Model
-        model = LinearRegression()
-        model.fit(X, y)
-
-        # 5. Cek Tanggal Input User
         start_dt = pd.to_datetime(date_range.start_date)
         end_dt = pd.to_datetime(date_range.end_date)
         
         if end_dt < start_dt:
-            raise Exception("Logika Error: Tanggal Akhir tidak boleh lebih lampau dari Tanggal Mulai.")
+            raise Exception("Tanggal Akhir tidak boleh lebih lampau dari Tanggal Mulai.")
 
-        # 6. Buat kerangka waktu yang direquest
         date_list = pd.date_range(start=start_dt, end=end_dt)
         df_request = pd.DataFrame({'Date': date_list})
-        
-        # 7. Ambil data Harga ASLI dari dataset (Garis Hijau)
-        # Menggunakan merge agar tanggal yang bursa libur/kosong terisi NaN
         df_merged = pd.merge(df_request, df[['Date', 'Close']], on='Date', how='left')
         
-        # 8. Lakukan PREDIKSI untuk seluruh tanggal tersebut (Garis Biru)
-        date_ordinals = np.array([d.toordinal() for d in date_list]).reshape(-1, 1)
-        predictions = model.predict(date_ordinals)
+        model_path = 'model_prediksi_saham.pkl'
+        
+        if os.path.exists(model_path):
+            model = joblib.load(model_path)
+        else:
+            raise Exception(f"File model {model_path} tidak ditemukan.")
 
-        # 9. Format Data untuk dikirim ke Laravel
+        predicted_prices = []
+        history_df = df[df['Date'] < start_dt].sort_values('Date')
+        
+        # Ambil harga masa lalu (Dibersihkan pakai safe_float)
+        if len(history_df) >= 2:
+            last_2_prices = history_df['Close'].tail(2).tolist()
+            current_dua_hari_lalu = safe_float(last_2_prices[0]) or 0.0
+            current_kemarin = safe_float(last_2_prices[1]) or 0.0
+        else:
+            current_dua_hari_lalu = safe_float(df['Close'].iloc[0]) or 0.0
+            current_kemarin = safe_float(df['Close'].iloc[0]) or 0.0
+
+        for d in date_list:
+            X_input = pd.DataFrame({
+                'Harga_Kemarin': [current_kemarin],
+                'Harga_Dua_Hari_Lalu': [current_dua_hari_lalu]
+            })
+            
+            try:
+                pred_val = model.predict(X_input)[0]
+            except ValueError:
+                X_input = pd.DataFrame({
+                    'Harga_Dua_Hari_Lalu': [current_dua_hari_lalu],
+                    'Harga_Kemarin': [current_kemarin]
+                })
+                pred_val = model.predict(X_input)[0]
+                
+            # BERSIHKAN HASIL PREDIKSI SEBELUM DISIMPAN
+            clean_pred = safe_float(pred_val)
+            
+            # Jika tebakan model rusak, gunakan harga kemarin agar grafik tidak putus
+            if clean_pred is None:
+                clean_pred = current_kemarin
+                
+            predicted_prices.append(clean_pred)
+            
+            actual_row = df[df['Date'] == d]
+            if not actual_row.empty and pd.notna(actual_row['Close'].values[0]):
+                today_price = safe_float(actual_row['Close'].values[0])
+            else:
+                today_price = clean_pred
+                
+            current_dua_hari_lalu = current_kemarin
+            current_kemarin = today_price
+
+        # ==============================================================
+        
         response_dates = [d.strftime('%Y-%m-%d') for d in date_list]
         
-        # Ubah NaN (data kosong) menjadi None agar bisa dikonversi ke JSON oleh FastAPI
-        actual_prices = df_merged['Close'].where(pd.notnull(df_merged['Close']), None).tolist()
-        response_prices = [round(p, 2) for p in predictions]
+        # Bersihkan seluruh harga asli menggunakan safe_float
+        clean_actual_prices = [safe_float(x) for x in df_merged['Close']]
 
         return {
             "dates": response_dates,
-            "actual_prices": actual_prices,     # Data Asli
-            "predicted_prices": response_prices # Data Prediksi (Tren ML)
+            "actual_prices": clean_actual_prices, # 100% Bebas NaN
+            "predicted_prices": predicted_prices  # 100% Bebas NaN
         }
         
     except Exception as e:
-        # Jika ada error, Python akan melempar pesan detailnya ke Laravel
         raise HTTPException(status_code=500, detail=str(e))
