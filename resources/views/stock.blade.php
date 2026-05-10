@@ -119,6 +119,14 @@
             box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
         }
 
+        /* State saat tombol loading */
+        .btn-predict.loading-state {
+            background: #6c757d;
+            pointer-events: none;
+            box-shadow: none;
+            transform: none;
+        }
+
         .app-header .icon-wrapper {
             display: inline-flex;
             align-items: center;
@@ -167,7 +175,7 @@
         @endif
 
         <div class="card glass-card p-4 mb-4">
-            <form action="{{ route('predict') }}" method="POST">
+            <form action="{{ route('predict') }}" method="POST" id="predictForm">
                 @csrf
                 <div class="row g-4">
                     <div class="col-md-5">
@@ -179,7 +187,7 @@
                         <input type="text" id="end_date" name="end_date" class="form-control" required value="{{ $end_date ?? '' }}" placeholder="Pilih Tanggal Akhir...">
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary btn-predict w-100 text-white shadow-sm">
+                        <button type="submit" id="submitBtn" class="btn btn-primary btn-predict w-100 text-white shadow-sm">
                             <i class="bi bi-magic me-1"></i> Analisis ML
                         </button>
                     </div>
@@ -281,6 +289,18 @@
     </div>
 
     <script>
+        document.getElementById('predictForm').addEventListener('submit', function() {
+            const btn = document.getElementById('submitBtn');
+
+            // Ubah teks dan tambahkan animasi spinner saat ditekan
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Memproses AI...';
+
+            // Nonaktifkan tombol secara visual agar tidak bisa diklik dua kali
+            btn.classList.add('loading-state');
+        });
+    </script>
+
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#start_date", {
                 altInput: true,
@@ -307,10 +327,7 @@
                 const chartActual = JSON.parse(strActual);
                 const chartPrices = JSON.parse(strPrices);
 
-                // ==========================================
                 // 0. UPDATE KARTU RINGKASAN (KPI STATS)
-                // ==========================================
-                // Filter nilai null/0 dari chartPrices agar perhitungan akurat
                 const validPrices = chartPrices.filter(p => p !== null && p > 0);
                 const maxPrice = Math.max(...validPrices);
                 const minPrice = Math.min(...validPrices);
@@ -326,15 +343,12 @@
                 document.getElementById('minPriceVal').innerText = formatRupiah(minPrice);
                 document.getElementById('latestPriceVal').innerText = formatRupiah(latestPrice);
 
-                // ==========================================
                 // 1. GRAFIK UTAMA (LINE CHART DGN GRADIENT)
-                // ==========================================
                 const ctx = document.getElementById('stockChart').getContext('2d');
 
-                // Membuat Efek Gradien Biru
                 let gradientBlue = ctx.createLinearGradient(0, 0, 0, 400);
-                gradientBlue.addColorStop(0, 'rgba(13, 110, 253, 0.4)'); // Biru pekat di atas
-                gradientBlue.addColorStop(1, 'rgba(13, 110, 253, 0.0)'); // Transparan di bawah
+                gradientBlue.addColorStop(0, 'rgba(13, 110, 253, 0.4)');
+                gradientBlue.addColorStop(1, 'rgba(13, 110, 253, 0.0)');
 
                 window.myStockChart = new Chart(ctx, {
                     type: 'line',
@@ -355,12 +369,12 @@
                                 label: 'Prediksi ML (Model)',
                                 data: chartPrices,
                                 borderColor: '#0d6efd',
-                                backgroundColor: gradientBlue, // Pemanis: Gradien Keren
+                                backgroundColor: gradientBlue,
                                 borderWidth: 2,
                                 borderDash: [6, 4],
                                 fill: true,
                                 pointRadius: 0,
-                                tension: 0.3, // Dibuat sedikit melengkung (smooth)
+                                tension: 0.3,
                                 order: 2
                             }
                         ]
@@ -457,9 +471,7 @@
                     window.myStockChart.resetZoom();
                 });
 
-                // ==========================================
                 // 2. LOGIKA PIE & BAR CHART
-                // ==========================================
                 let trenNaik = 0;
                 let trenTurun = 0;
                 for (let i = 1; i < chartPrices.length; i++) {
@@ -474,9 +486,7 @@
                 const lastActual = chartActual.slice(-limit);
                 const lastPredicted = chartPrices.slice(-limit);
 
-                // ==========================================
                 // 3. RENDER PIE CHART (DOUGHNUT)
-                // ==========================================
                 const pieCtx = document.getElementById('pieChart').getContext('2d');
                 new Chart(pieCtx, {
                     type: 'doughnut',
@@ -505,13 +515,11 @@
                                 }
                             }
                         },
-                        cutout: '70%' // Desain cincin tipis modern
+                        cutout: '70%'
                     }
                 });
 
-                // ==========================================
                 // 4. RENDER BAR CHART
-                // ==========================================
                 const barCtx = document.getElementById('barChart').getContext('2d');
                 new Chart(barCtx, {
                     type: 'bar',
