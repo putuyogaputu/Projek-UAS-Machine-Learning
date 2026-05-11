@@ -23,8 +23,6 @@
             background-color: #f4f7f6;
             color: #2c3e50;
         }
-
-        /* Animasi Keren */
         .fade-in {
             animation: fadeIn 0.8s ease-in-out;
         }
