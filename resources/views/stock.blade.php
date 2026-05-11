@@ -153,6 +153,8 @@
             </div>
             <h2 class="fw-bold mb-2">AI Prediksi Saham <span class="text-primary">BBCA</span></h2>
             <p class="text-secondary">Proyek UAS Machine Learning &bull; Algoritma Regresi Cerdas</p>
+            <p style="text-align: center;">Model Ini Hanya Memprediksi Saham BBCA Dalam Periode Waktu 18 Agustus 2020 - 15
+                Agustus 2025</p>
         </div>
 
         @if(session('error'))
