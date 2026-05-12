@@ -287,7 +287,7 @@
         @endif
 
         <div class="text-center text-muted mt-5 mb-4" style="font-size: 0.85rem;">
-            &copy; 2024 Aplikasi Prediksi Saham ML. Dibuat dengan <i class="bi bi-heart-fill text-danger mx-1"></i> untuk pemenuhan UAS.
+            &copy; 2024 Aplikasi Prediksi Saham ML. Dibuat untuk pemenuhan UAS.
         </div>
     </div>
 

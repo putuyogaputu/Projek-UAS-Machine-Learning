@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
-import math # Tambahan untuk ngecek NaN dan Infinity
+import math
+import warnings
 from datetime import datetime
 
 app = FastAPI()
@@ -13,11 +14,8 @@ class DateRange(BaseModel):
     start_date: str
     end_date: str
 
-# ==============================================================
-# FUNGSI KEAMANAN JSON (MENCEGAH CRASH)
-# ==============================================================
+# Fungsi Satpam JSON
 def safe_float(value):
-    """Mengubah nilai apapun menjadi float yang sah atau None (null JSON)"""
     if pd.isna(value) or value is None:
         return None
     try:
@@ -60,7 +58,6 @@ def predict_stock(date_range: DateRange):
         predicted_prices = []
         history_df = df[df['Date'] < start_dt].sort_values('Date')
         
-        # Ambil harga masa lalu (Dibersihkan pakai safe_float)
         if len(history_df) >= 2:
             last_2_prices = history_df['Close'].tail(2).tolist()
             current_dua_hari_lalu = safe_float(last_2_prices[0]) or 0.0
@@ -69,33 +66,38 @@ def predict_stock(date_range: DateRange):
             current_dua_hari_lalu = safe_float(df['Close'].iloc[0]) or 0.0
             current_kemarin = safe_float(df['Close'].iloc[0]) or 0.0
 
+        if hasattr(model, 'feature_names_in_'):
+            features = [f.lower() for f in model.feature_names_in_]
+        else:
+            features = ['harga_kemarin', 'harga_dua_hari_lalu']
+
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        # ==============================================================
+        # OPTIMASI HYPER-TURBO: PENCARIAN O(1) DENGAN DICTIONARY
+        # ==============================================================
+        # Ubah DataFrame menjadi Dictionary agar pencarian instan (tanpa loading lama)
+        historical_dict = {d.strftime('%Y-%m-%d'): val for d, val in zip(df['Date'], df['Close'])}
+
         for d in date_list:
-            X_input = pd.DataFrame({
-                'Harga_Kemarin': [current_kemarin],
-                'Harga_Dua_Hari_Lalu': [current_dua_hari_lalu]
-            })
+            input_dict = {
+                'harga_kemarin': current_kemarin,
+                'harga_dua_hari_lalu': current_dua_hari_lalu
+            }
             
-            try:
-                pred_val = model.predict(X_input)[0]
-            except ValueError:
-                X_input = pd.DataFrame({
-                    'Harga_Dua_Hari_Lalu': [current_dua_hari_lalu],
-                    'Harga_Kemarin': [current_kemarin]
-                })
-                pred_val = model.predict(X_input)[0]
-                
-            # BERSIHKAN HASIL PREDIKSI SEBELUM DISIMPAN
+            row_data = [input_dict.get(f, 0.0) for f in features]
+            pred_val = model.predict([row_data])[0]
+            
             clean_pred = safe_float(pred_val)
-            
-            # Jika tebakan model rusak, gunakan harga kemarin agar grafik tidak putus
-            if clean_pred is None:
-                clean_pred = current_kemarin
-                
+            if clean_pred is None: clean_pred = current_kemarin
             predicted_prices.append(clean_pred)
             
-            actual_row = df[df['Date'] == d]
-            if not actual_row.empty and pd.notna(actual_row['Close'].values[0]):
-                today_price = safe_float(actual_row['Close'].values[0])
+            # PENCARIAN SUPER CEPAT (Tidak perlu query Pandas di dalam loop lagi!)
+            d_str = d.strftime('%Y-%m-%d')
+            actual_price = historical_dict.get(d_str)
+            
+            if actual_price is not None and pd.notna(actual_price):
+                today_price = safe_float(actual_price)
             else:
                 today_price = clean_pred
                 
@@ -105,14 +107,12 @@ def predict_stock(date_range: DateRange):
         # ==============================================================
         
         response_dates = [d.strftime('%Y-%m-%d') for d in date_list]
-        
-        # Bersihkan seluruh harga asli menggunakan safe_float
         clean_actual_prices = [safe_float(x) for x in df_merged['Close']]
 
         return {
             "dates": response_dates,
-            "actual_prices": clean_actual_prices, # 100% Bebas NaN
-            "predicted_prices": predicted_prices  # 100% Bebas NaN
+            "actual_prices": clean_actual_prices,
+            "predicted_prices": predicted_prices 
         }
         
     except Exception as e:
