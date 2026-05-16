@@ -18,14 +18,12 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <style>
-        /* Style Kustom Tambahan */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f4f7f6;
             color: #2c3e50;
         }
 
-        /* Animasi Keren */
         .fade-in {
             animation: fadeIn 0.8s ease-in-out;
         }
@@ -48,7 +46,6 @@
             display: inline-block;
         }
 
-        /* Desain Card Utama */
         .glass-card {
             background: #ffffff;
             border: none;
@@ -61,7 +58,6 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
         }
 
-        /* Kartu KPI (Quick Stats) */
         .stat-card {
             background: linear-gradient(145deg, #ffffff, #f8fafc);
             border: 1px solid #e9ecef;
@@ -90,7 +86,6 @@
             margin-right: 1rem;
         }
 
-        /* Form Custom */
         .form-control {
             border-radius: 0.5rem;
             padding: 0.75rem 1rem;
@@ -104,7 +99,6 @@
             background-color: #ffffff;
         }
 
-        /* Tombol Ciamik */
         .btn-predict {
             background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
             border: none;
@@ -120,7 +114,6 @@
             box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
         }
 
-        /* State saat tombol loading */
         .btn-predict.loading-state {
             background: #6c757d;
             pointer-events: none;
@@ -153,8 +146,9 @@
             </div>
             <h2 class="fw-bold mb-2">AI Prediksi Saham <span class="text-primary">BBCA</span></h2>
             <p class="text-secondary">Proyek UAS Machine Learning &bull; Algoritma Regresi Cerdas</p>
-            <p style="text-align: center;">Model Ini Hanya Memprediksi Saham BBCA Dalam Periode Waktu 18 Agustus 2020 - 15
-                Agustus 2025</p>
+            <p class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill mt-1">
+                <i class="bi bi-info-circle-fill me-1"></i> Rentang Waktu Valid Model: <b>24 Agustus 2020 - 15 Agustus 2025</b>
+            </p>
         </div>
 
         @if(session('error'))
@@ -199,13 +193,10 @@
         </div>
 
         @if(isset($dates) && isset($prices))
-
         <div class="row g-4 mb-4 fade-in" style="animation-delay: 0.2s;">
             <div class="col-md-4">
                 <div class="stat-card">
-                    <div class="stat-icon bg-success bg-opacity-10 text-success">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </div>
+                    <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-graph-up-arrow"></i></div>
                     <div>
                         <p class="text-muted mb-0" style="font-size: 0.85rem;">Prediksi Tertinggi</p>
                         <h5 class="fw-bold mb-0 text-success" id="maxPriceVal">Rp 0</h5>
@@ -214,9 +205,7 @@
             </div>
             <div class="col-md-4">
                 <div class="stat-card">
-                    <div class="stat-icon bg-danger bg-opacity-10 text-danger">
-                        <i class="bi bi-graph-down-arrow"></i>
-                    </div>
+                    <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-graph-down-arrow"></i></div>
                     <div>
                         <p class="text-muted mb-0" style="font-size: 0.85rem;">Prediksi Terendah</p>
                         <h5 class="fw-bold mb-0 text-danger" id="minPriceVal">Rp 0</h5>
@@ -225,9 +214,7 @@
             </div>
             <div class="col-md-4">
                 <div class="stat-card">
-                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
-                        <i class="bi bi-cash-coin"></i>
-                    </div>
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-cash-coin"></i></div>
                     <div>
                         <p class="text-muted mb-0" style="font-size: 0.85rem;">Prediksi Penutupan Akhir</p>
                         <h5 class="fw-bold mb-0 text-primary" id="latestPriceVal">Rp 0</h5>
@@ -268,18 +255,14 @@
                     <div class="bg-white rounded-4 border p-3 h-100 shadow-sm hover-lift">
                         <h6 class="fw-bold text-center mb-1"><i class="bi bi-pie-chart-fill text-warning me-2"></i>Proporsi Tren Harian</h6>
                         <p class="text-muted text-center small mb-3">Frekuensi Prediksi Naik vs Turun</p>
-                        <div style="height: 280px; width: 100%;">
-                            <canvas id="pieChart"></canvas>
-                        </div>
+                        <div style="height: 280px; width: 100%;"><canvas id="pieChart"></canvas></div>
                     </div>
                 </div>
                 <div class="col-lg-8 col-md-6">
                     <div class="bg-white rounded-4 border p-3 h-100 shadow-sm hover-lift">
                         <h6 class="fw-bold text-center mb-1"><i class="bi bi-bar-chart-steps text-info me-2"></i>Perbandingan 10 Hari Terakhir</h6>
                         <p class="text-muted text-center small mb-3">Selisih Data Aktual vs Prediksi Algoritma</p>
-                        <div style="height: 280px; width: 100%;">
-                            <canvas id="barChart"></canvas>
-                        </div>
+                        <div style="height: 280px; width: 100%;"><canvas id="barChart"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -294,26 +277,24 @@
     <script>
         document.getElementById('predictForm').addEventListener('submit', function() {
             const btn = document.getElementById('submitBtn');
-
-            // Ubah teks dan tambahkan animasi spinner saat ditekan
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Memproses AI...';
-
-            // Nonaktifkan tombol secara visual agar tidak bisa diklik dua kali
             btn.classList.add('loading-state');
         });
-    </script>
 
-    <script>
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#start_date", {
                 altInput: true,
                 altFormat: "d F Y",
-                dateFormat: "Y-m-d"
+                dateFormat: "Y-m-d",
+                minDate: "2020-08-24",
+                maxDate: "2025-08-15"
             });
             flatpickr("#end_date", {
                 altInput: true,
                 altFormat: "d F Y",
-                dateFormat: "Y-m-d"
+                dateFormat: "Y-m-d",
+                minDate: "2020-08-24",
+                maxDate: "2025-08-15"
             });
         });
     </script>
@@ -330,7 +311,6 @@
                 const chartActual = JSON.parse(strActual);
                 const chartPrices = JSON.parse(strPrices);
 
-                // 0. UPDATE KARTU RINGKASAN (KPI STATS)
                 const validPrices = chartPrices.filter(p => p !== null && p > 0);
                 const maxPrice = Math.max(...validPrices);
                 const minPrice = Math.min(...validPrices);
@@ -346,12 +326,12 @@
                 document.getElementById('minPriceVal').innerText = formatRupiah(minPrice);
                 document.getElementById('latestPriceVal').innerText = formatRupiah(latestPrice);
 
-                // 1. GRAFIK UTAMA (LINE CHART DGN GRADIENT)
                 const ctx = document.getElementById('stockChart').getContext('2d');
 
-                let gradientBlue = ctx.createLinearGradient(0, 0, 0, 400);
-                gradientBlue.addColorStop(0, 'rgba(13, 110, 253, 0.4)');
-                gradientBlue.addColorStop(1, 'rgba(13, 110, 253, 0.0)');
+                // PERBAIKAN TYPO: Sekarang dua-duanya menggunakan nama yang benar (gradientRed)
+                let gradientRed = ctx.createLinearGradient(0, 0, 0, 400);
+                gradientRed.addColorStop(0, 'rgba(220, 53, 69, 0.4)'); // Merah Transparan di atas
+                gradientRed.addColorStop(1, 'rgba(220, 53, 69, 0.0)'); // Menghilang di bawah
 
                 window.myStockChart = new Chart(ctx, {
                     type: 'line',
@@ -360,7 +340,7 @@
                         datasets: [{
                                 label: 'Harga Aktual (Data Asli)',
                                 data: chartActual,
-                                borderColor: '#198754',
+                                borderColor: '#0d6efd', // Aktual = Biru
                                 backgroundColor: 'transparent',
                                 borderWidth: 2.5,
                                 pointRadius: 0,
@@ -371,8 +351,8 @@
                             {
                                 label: 'Prediksi ML (Model)',
                                 data: chartPrices,
-                                borderColor: '#0d6efd',
-                                backgroundColor: gradientBlue,
+                                borderColor: '#dc3545', // Prediksi ML = Merah
+                                backgroundColor: gradientRed, // Gradien Merah yang sudah diperbaiki
                                 borderWidth: 2,
                                 borderDash: [6, 4],
                                 fill: true,
@@ -387,7 +367,7 @@
                         maintainAspectRatio: false,
                         interaction: {
                             mode: 'index',
-                            intersect: false,
+                            intersect: false
                         },
                         plugins: {
                             tooltip: {
@@ -435,7 +415,7 @@
                                     pinch: {
                                         enabled: true
                                     },
-                                    mode: 'x',
+                                    mode: 'x'
                                 }
                             }
                         },
@@ -474,7 +454,6 @@
                     window.myStockChart.resetZoom();
                 });
 
-                // 2. LOGIKA PIE & BAR CHART
                 let trenNaik = 0;
                 let trenTurun = 0;
                 for (let i = 1; i < chartPrices.length; i++) {
@@ -489,7 +468,6 @@
                 const lastActual = chartActual.slice(-limit);
                 const lastPredicted = chartPrices.slice(-limit);
 
-                // 3. RENDER PIE CHART (DOUGHNUT)
                 const pieCtx = document.getElementById('pieChart').getContext('2d');
                 new Chart(pieCtx, {
                     type: 'doughnut',
@@ -522,7 +500,6 @@
                     }
                 });
 
-                // 4. RENDER BAR CHART
                 const barCtx = document.getElementById('barChart').getContext('2d');
                 new Chart(barCtx, {
                     type: 'bar',
@@ -531,14 +508,14 @@
                         datasets: [{
                                 label: 'Aktual',
                                 data: lastActual,
-                                backgroundColor: '#198754',
+                                backgroundColor: '#0d6efd', // Batang Aktual = Biru
                                 borderRadius: 6,
                                 barPercentage: 0.6
                             },
                             {
                                 label: 'Prediksi ML',
                                 data: lastPredicted,
-                                backgroundColor: '#0d6efd',
+                                backgroundColor: '#dc3545', // Batang Prediksi ML = Merah
                                 borderRadius: 6,
                                 barPercentage: 0.6
                             }
